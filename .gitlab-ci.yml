@@ -1,0 +1,41 @@
+stages:   
+  - trigger
+  - notify
+
+variables:
+  GITLAB_HOST: gitlab.socs.uoguelph.ca
+  GRADER_PROJECT_ID: "56631"
+  GRADER_REF: "main"             
+  ASSIGNMENT: "A4"
+                      # change only the next two lines, nothing else
+  STUDENT_ID: "mallen31"   # TODO: NOT YOUR STUDENT ID
+                           # this should be your username in lowercase letters
+                           # is the same as your USERNAME@uoguelph.ca address 
+  STUDENT_REPO: "mallen31/A4" # TODO: replace USERNAME with your uoguelph username, leave A2 
+  STUDENT_BRANCH: "main"
+
+trigger_A4_grader:
+  stage: trigger
+  image: curlimages/curl:8.10.1
+  only:
+    refs:
+      - main
+  script:
+    - |
+      curl --fail -X POST \
+        "https://${GITLAB_HOST}/api/v4/projects/${GRADER_PROJECT_ID}/trigger/pipeline" \
+        --data "token=${A4_TRIGGER_TOKEN}" \
+        --data "ref=${GRADER_REF}" \
+        --data-urlencode "variables[STUDENT_ID]=${STUDENT_ID}" \
+        --data-urlencode "variables[STUDENT_REPO]=${STUDENT_REPO}" \
+        --data-urlencode "variables[STUDENT_BRANCH]=${STUDENT_BRANCH}" \
+        --data-urlencode "variables[ASSIGNMENT]=${ASSIGNMENT}" \
+        --data-urlencode "variables[STUDENT_SHA]=${CI_COMMIT_SHA}"
+
+notify_feedback_light:
+  stage: notify
+  image: alpine:3.20
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "A4_feedback"'
+  script:
+    - echo "Autograder updated A4_feedback at $(date -u +%FT%TZ)"

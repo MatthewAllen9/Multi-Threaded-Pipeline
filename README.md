@@ -1,71 +1,128 @@
 # CIS\*3110 A4 Producer-consumer
 
-### Full Name: First Last 
-### Student id: 9999999  
-
-REMOVE EVERYTHING BELOW THIS LINE BEFORE SUBMITTING
-
-We are grading the READMEs anonymously, please do not remove or change the formatting of the name and student id above. Just replace Fist Last with your name and student id with your id.
-
-IMPORTANT: the goal of any README is to make it *easy* for the person who is reading it (could be yourself in the future) to:
-
-- understand what the project is about;
-
-- compile and run the code;
-
-- try common usage scenarios.
-
-*Everything* you write in this README should serve this goal. 
-
-- Do not write too much, but provide enough detail. Assume prior knowledge of programming and basic tools like make, gcc, git, etc. 
-
-- Add subsections and sections to make the information easily searchable;
-
-- Use proper formatting for code/commands, bullet points, paragraphs; 
-
-- Provide inputs/outputs and/or demo script to help the user to see the program in action;
-
-- Some repetition is OK if it makes it easier for the user. E.g. when describing common usage scenarios, you can repeat information that was already listed in earlier sections.
-
-REMOVE EVERYTHING ABOVE THIS LINE BEFORE SUBMITTING
-
-
-KEEP THE SECTION TITLES BUT DELETE ALL INSTRUCTIONS BEFORE SUBMITTING
+### Full Name: Matthew Allen
+### Student id: 1313528
 
 ## Overview
 
-This section should contain the following information:
+This program implements a multi-threaded pipeline using producers, workers, and consumers to create an efficient solution to process a stream of data using multiple threads and preserve the correct output order.
 
-[1.] A brief high-level description of the problem in your own words.
+### Producers
 
-[2.] Implementation of the concurrent queue. If you used the implementation from the Chapter 29.3, acknowledge it explicitly. Provide only a basic description of how a queue operates for context. Primary focus should be on how your implementation enables concurrent execution while preventing race conditions. 
+Producers read pairs of integers from the input file to store their delay and value. These pairs are stored in Item structs and then added to a queue.
 
-[3.] Implementation of the producers and how they signal to other threads that input is finished.
+Producers share a file pointer and use a lock for the file to ensure only one thread reads at a time. Each item stores a sequence number when read to maintain order for the consumers later. When all producers finish, the last one closes the first queue to signal that the file is finished.
 
-[4.] Implementation of the workers, how they know when to stop and communicate this to consumer threads.
+### Workers
 
-[5.] Implementation of the consumers, how they know when to stop and how they maintain original ordering of the input, while maintaining concurrency.
+The workers sleep for the designated delay time and then simulate processing the value by multiplying it by 3.
 
-Do not copy the assignment instructions, do not use LLMs to generate this, use your own words. 
+Workers terminate when Queue A is empty and closed. The final worker closes the second queue to notify consumers.
 
-When describing the implementation, refer to the specific synchronization primitives that were used.
+### Consumers
 
-Keep this section specific but brief. In total, the overview should not exceed 2,000 characters (including white spaces, newlines, sybsection titles, pseudo-code, etc.).
+Consumers print the new processed values in the original order from the input. 
 
-The README overall should not exceed 4,000 characters.
+Consumers dequeue processed items from the second queue and store them indexed by sequence number. Consumers print values only when the next expected sequence is ready, ensuring correct ordering while still allowing concurrent processing.
+
+### Queues
+
+In between the stages, queues are used to store the ordered items. The queues are implemented through linked lists with mutex and condition protection and a closed flag. Multiple threads can safely use the queues concurrently since each queue is protected by a mutex so only one thread can modify it at a time. The queue also supports concurrent execution by using a condition variable. When a thread is ready to dequeue from an empty queue, it waits with ```pthread_cond_wait```, which locks the queue until an item is enqueued to optimize CPU usage. The closed flag and ```pthread_cond_broadcast``` allow all waiting threads to exit when no more data is arriving. My queue implementation is similar and based on the example from the Chapter 29.3. 
 
 ## Installation
 
-Explain how to compile the code on Linux (optionally on other OSs).
+Linux SOCS server
+
+Compilation: 
+```make```
+
+This creates the executable: ```pipeline```
 
 ## Usage
 
-Explain how to run the code, what are the parameters, inputs (valid and invalid), assumptions, etc. 
+Run Code: 
+```./pipeline <input_file> [P] [W] [C]```
 
-Explain what the code outputs and in what format.
+### Parameters
 
-Include several common usage examples in the repo. Show the corresponding outputs. Explain more if needed.
++ ```<input_file>```: Text file storing one item per line 
++ ```[P]```: Number of producer threads
++ ```[W]```: Number of worker threads
++ ```[C]```: Number of consumer threads
 
-You may also provide a demo script or a set of commands to run the algorithm with different options. 
+[P], [W], and [C] are all optional with their default values all being 2. Thread counts should all be positive integers.
 
-KEEP THE SECTION TITLES BUT DELETE ALL INSTRUCTIONS BEFORE SUBMITTING
+
+### Input File Format
+```<delay> <value>``` 
+
+### Invalid Usage
+
++ ```./pipeline```: No input file
+
++ ```./pipeline input.txt 0 -1 -2```: Number of threads must all be positive integers
+
+### Output
+
+The program outputs the processed values in the sequence that they were read from the input file. Each processed value is on its own line and is 3 times the initial value that was read in. These values are printed by the consumer.
+
+## Examples
+
+input1.txt
+```
+0 5
+10 10
+15 15
+```
+
+input2.txt
+```
+10 1
+0 2
+0 3
+0 4
+0 5
+```
+
+### Example 1
+
+```
+make
+./pipeline input1.txt
+```
+
+Output:
+```
+15
+30
+45
+```
+
+### Example 2
+
+```
+make
+./pipeline input1.txt 5 2 4
+```
+
+```
+15
+30
+45
+```
+
+### Example 3
+
+```
+make
+./pipeline input2.txt 3 3 3
+```
+
+Output:
+```
+3
+6
+9
+12
+15
+```

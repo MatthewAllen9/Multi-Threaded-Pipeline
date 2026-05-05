@@ -1,7 +1,4 @@
-# CIS\*3110 A4 Producer-consumer
-
-### Full Name: Matthew Allen
-### Student id: 1313528
+# Producer-consumer
 
 ## Overview
 
